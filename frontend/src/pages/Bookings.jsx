@@ -6,7 +6,6 @@
 
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import Sidebar from '@/components/ui/sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { QRCodeSVG } from 'qrcode.react'
 import { motion } from 'framer-motion'
@@ -25,10 +24,7 @@ const Bookings = () => {
   }, [dispatch, user?.id])
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 w-full md:w-auto md:ml-0 overflow-y-auto">
-        <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-7xl mx-auto space-y-8">
           <div>
             <h1 className="text-4xl font-bold tracking-tight">My Bookings</h1>
             <p className="text-muted-foreground mt-2">View and manage your event bookings</p>
@@ -109,8 +105,6 @@ const Bookings = () => {
               })}
             </div>
           )}
-        </div>
-      </div>
     </div>
   )
 }

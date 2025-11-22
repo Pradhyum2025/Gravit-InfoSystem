@@ -49,11 +49,17 @@ const BookingModal = ({ event, onClose }) => {
     })
 
     return () => {
+      // Unlock all selected seats when modal closes
+      if (newSocket && selectedSeats.length > 0) {
+        selectedSeats.forEach(seatIndex => {
+          newSocket.emit('unlockSeat', { eventId: event.id, seatIndex })
+        })
+      }
       if (!socket && newSocket) {
         newSocket.disconnect()
       }
     }
-  }, [event.id, user?.id, dispatch, socket])
+  }, [event.id, user?.id, dispatch, socket, selectedSeats])
 
   const totalSeats = event.totalSeats || 50
   const seatsPerRow = 10
@@ -97,6 +103,12 @@ const BookingModal = ({ event, onClose }) => {
 
       setBookingData(result)
       setBookingSuccess(true)
+      // Unlock all seats after successful booking
+      if (socket && selectedSeats.length > 0) {
+        selectedSeats.forEach(seatIndex => {
+          socket.emit('unlockSeat', { eventId: event.id, seatIndex })
+        })
+      }
       dispatch(fetchEventById(event.id))
     } catch (error) {
       alert(error || 'Booking failed')

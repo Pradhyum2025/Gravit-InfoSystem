@@ -9,8 +9,10 @@ import { useNavigate } from 'react-router-dom'
 import { fetchEvents } from '@/store/slices/eventsSlice'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
-import { Calendar, MapPin, Ticket, ArrowRight, ChevronDown, Users, Star } from 'lucide-react'
+import { Calendar, MapPin, Ticket, ArrowRight, ChevronDown, Users, Star, Search, Filter } from 'lucide-react'
 import Footer from '@/components/Footer'
 import TalkToUs from '@/components/TalkToUs'
 import BookingModal from '@/components/BookingModal'
@@ -22,6 +24,10 @@ const Home = () => {
   const { user } = useSelector((state) => state.user)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterLocation, setFilterLocation] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterDate, setFilterDate] = useState('')
   const { scrollYProgress } = useScroll()
   const y = useTransform(scrollYProgress, [0, 1], ['0%', '20%'])
   const opacity = useTransform(scrollYProgress, [0, 0.3], [1, 0])
@@ -35,7 +41,21 @@ const Home = () => {
     dispatch(fetchEvents())
   }, [dispatch])
 
-  const allEvents = events.filter(e => new Date(e.date) > new Date())
+  const allEvents = events.filter(e => {
+    const isUpcoming = new Date(e.date) > new Date()
+    const matchesSearch = !searchTerm || 
+      e.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesLocation = filterLocation === 'all' || !filterLocation || 
+      e.location?.toLowerCase() === filterLocation.toLowerCase()
+    const matchesStatus = filterStatus === 'all' || !filterStatus || e.status === filterStatus
+    const matchesDate = !filterDate || 
+      new Date(e.date).toISOString().split('T')[0] === filterDate
+    
+    return isUpcoming && matchesSearch && matchesLocation && matchesStatus && matchesDate
+  })
+  
+  const uniqueLocations = [...new Set(events.map(e => e.location).filter(Boolean))]
 
   const handleBookTicket = (event) => {
     if (!user) {
@@ -52,61 +72,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans text-gray-900">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4 flex justify-between items-center">
-          <motion.h1
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-2xl font-bold text-primary"
-          >
-            Event Booking
-          </motion.h1>
-          <div className="flex gap-3">
-            {user ? (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-              >
-                <Button
-                  onClick={() => navigate(user.role === 'admin' ? '/admin/dashboard' : '/dashboard')}
-                  className="rounded-full px-6 py-2"
-                >
-                  Dashboard
-                </Button>
-              </motion.div>
-            ) : (
-              <>
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  <Button
-                    variant="ghost"
-                    onClick={() => navigate('/login')}
-                    className="rounded-full font-medium"
-                  >
-                    Login
-                  </Button>
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <Button
-                    onClick={() => navigate('/register')}
-                    className="rounded-full px-6 py-2"
-                  >
-                    Sign up
-                  </Button>
-                </motion.div>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+
 
       {/* Hero Section */}
       <section ref={heroRef} className="relative min-h-[90vh] flex items-center justify-center pt-24 pb-16">
@@ -207,15 +173,83 @@ const Home = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={eventsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6 }}
-            className="mb-12 text-center"
+            className="mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">
-              All Events
-            </h2>
-            <p className="text-lg md:text-xl text-gray-600">
-              Discover experiences you'll love
-            </p>
+            <div className="text-center mb-8">
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">
+                All Events
+              </h2>
+              <p className="text-lg md:text-xl text-gray-600">
+                Discover experiences you'll love
+              </p>
+            </div>
 
+            {/* Search and Filter */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={eventsInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.2 }}
+              className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-8"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search events..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={filterLocation || 'all'} onValueChange={(value) => setFilterLocation(value === 'all' ? '' : value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Locations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Locations</SelectItem>
+                    {uniqueLocations.map(loc => (
+                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  placeholder="Filter by date"
+                />
+                <Select value={filterStatus || 'all'} onValueChange={(value) => setFilterStatus(value === 'all' ? '' : value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="upcoming">Upcoming</SelectItem>
+                    <SelectItem value="live">Live</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {(searchTerm || (filterLocation && filterLocation !== 'all') || filterDate || (filterStatus && filterStatus !== 'all')) && (
+                <div className="mt-4 flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm('')
+                      setFilterLocation('all')
+                      setFilterDate('')
+                      setFilterStatus('all')
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {allEvents.length} event{allEvents.length !== 1 ? 's' : ''} found
+                  </span>
+                </div>
+              )}
+            </motion.div>
           </motion.div>
 
           {loading ? (
@@ -396,7 +430,6 @@ const Home = () => {
         </motion.div>
       </section>
 
-      <Footer />
       <TalkToUs />
       
       {/* Booking Modal */}

@@ -5,7 +5,6 @@
 // ---------------------------------------------------------------------
 
 import { useSelector } from 'react-redux'
-import Sidebar from '@/components/ui/sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { motion } from 'framer-motion'
 import { User, Mail, Shield } from 'lucide-react'
@@ -14,10 +13,7 @@ const Profile = () => {
   const { user } = useSelector((state) => state.user)
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 w-full md:w-auto md:ml-0 overflow-y-auto">
-        <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-4xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-4xl mx-auto space-y-8">
           <div>
             <h1 className="text-4xl font-bold tracking-tight">Profile</h1>
             <p className="text-muted-foreground mt-2">View your account information</p>
@@ -75,8 +71,6 @@ const Profile = () => {
               </CardContent>
             </Card>
           </motion.div>
-        </div>
-      </div>
     </div>
   )
 }

@@ -9,7 +9,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { fetchEvents } from '@/store/slices/eventsSlice'
 import { fetchBookings } from '@/store/slices/bookingsSlice'
-import Sidebar from '@/components/ui/sidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { motion } from 'framer-motion'
 import { Calendar, Ticket, TrendingUp, Users } from 'lucide-react'
@@ -36,12 +35,16 @@ const AdminDashboard = () => {
     const today = new Date()
     return eventDate.toDateString() === today.toDateString()
   })
-  const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0)
+
+  const totalRevenue = bookings.reduce(
+    (sum, b) => sum + parseFloat(b.totalAmount || 0),
+    0 // <-- MUST be a number, not "0"
+  );
+  console.log("bookings",totalRevenue)
+
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 overflow-y-auto">
+    <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-7xl mx-auto space-y-8">
         <div className="p-8">
           <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -151,7 +154,6 @@ const AdminDashboard = () => {
             </Card>
           </div>
         </div>
-      </div>
     </div>
   )
 }

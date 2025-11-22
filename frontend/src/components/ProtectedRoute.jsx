@@ -7,7 +7,7 @@
 import { Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 
-const ProtectedRoute = ({ children, requireAdmin = false }) => {
+const ProtectedRoute = ({ children, element, requireAdmin = false }) => {
   const { user, token } = useSelector((state) => state.user)
 
   if (!token || !user) {
@@ -18,7 +18,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     return <Navigate to="/dashboard" replace />
   }
 
-  return children
+  return element || children
 }
 
 export default ProtectedRoute

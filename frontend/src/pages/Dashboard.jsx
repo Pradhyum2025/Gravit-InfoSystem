@@ -9,7 +9,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { fetchBookings } from '@/store/slices/bookingsSlice'
 import { fetchEvents } from '@/store/slices/eventsSlice'
-import Sidebar from '@/components/ui/sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { motion } from 'framer-motion'
 import { Ticket, Calendar, TrendingUp, ArrowUpRight } from 'lucide-react'
@@ -23,13 +22,9 @@ const Dashboard = () => {
   const { events } = useSelector((state) => state.events)
 
   useEffect(() => {
-    if (user?.role === 'admin') {
-      navigate('/admin/dashboard', { replace: true })
-      return
-    }
     dispatch(fetchBookings({ userId: user?.id }))
     dispatch(fetchEvents())
-  }, [dispatch, user, navigate])
+  }, [dispatch, user?.id])
 
   const upcomingBookings = bookings.filter((booking) => {
     const event = events.find((e) => e.id === booking.eventId)
@@ -66,16 +61,13 @@ const Dashboard = () => {
   ]
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 w-full md:w-auto md:ml-0 overflow-y-auto">
-        <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-7xl mx-auto space-y-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
               <p className="text-muted-foreground mt-1">Welcome back, {user?.name}</p>
             </div>
-            <Button onClick={() => navigate('/events')}>
+            <Button onClick={() => navigate('/')}>
               Browse Events
             </Button>
           </div>
@@ -121,7 +113,7 @@ const Dashboard = () => {
                     <CardTitle>Recent Bookings</CardTitle>
                     <CardDescription>Your latest event bookings</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate('/bookings')}>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/bookings')}>
                     View All
                     <ArrowUpRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -134,7 +126,7 @@ const Dashboard = () => {
                       </div>
                       <h3 className="text-lg font-semibold">No bookings yet</h3>
                       <p className="text-muted-foreground mb-4">Start exploring events to make your first booking.</p>
-                      <Button onClick={() => navigate('/events')}>Browse Events</Button>
+                      <Button onClick={() => navigate('/')}>Browse Events</Button>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -171,8 +163,6 @@ const Dashboard = () => {
               </Card>
             </motion.div>
           </div>
-        </div>
-      </div>
     </div>
   )
 }

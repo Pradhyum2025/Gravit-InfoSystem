@@ -9,10 +9,9 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { fetchBookings, updateBooking } from '@/store/slices/bookingsSlice'
 import { fetchEvents } from '@/store/slices/eventsSlice'
-import Sidebar from '@/components/ui/sidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Select } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { motion } from 'framer-motion'
 
 const AdminBookings = () => {
@@ -23,13 +22,9 @@ const AdminBookings = () => {
   const { events } = useSelector((state) => state.events)
 
   useEffect(() => {
-    if (user?.role !== 'admin') {
-      navigate('/dashboard', { replace: true })
-      return
-    }
     dispatch(fetchBookings())
     dispatch(fetchEvents())
-  }, [dispatch, user, navigate])
+  }, [dispatch])
 
   const handleStatusUpdate = async (bookingId, newStatus) => {
     await dispatch(updateBooking({ id: bookingId, data: { status: newStatus } }))
@@ -37,9 +32,7 @@ const AdminBookings = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 overflow-y-auto">
+    <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-7xl mx-auto space-y-8">
         <div className="p-8">
           <h1 className="text-3xl font-bold mb-8">All Bookings</h1>
           {loading ? (
@@ -87,12 +80,16 @@ const AdminBookings = () => {
                           <div className="flex items-center gap-4">
                             <Select
                               value={booking.status || 'pending'}
-                              onChange={(e) => handleStatusUpdate(booking.id, e.target.value)}
-                              className="w-40"
+                              onValueChange={(value) => handleStatusUpdate(booking.id, value)}
                             >
-                              <option value="pending">Pending</option>
-                              <option value="confirmed">Confirmed</option>
-                              <option value="cancelled">Cancelled</option>
+                              <SelectTrigger className="w-40">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="confirmed">Confirmed</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                              </SelectContent>
                             </Select>
                           </div>
                         </div>
@@ -104,7 +101,6 @@ const AdminBookings = () => {
             </div>
           )}
         </div>
-      </div>
     </div>
   )
 }

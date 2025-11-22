@@ -27,23 +27,23 @@ const SidebarContent = ({ location, handleLogout, className }) => {
   const isAdmin = user?.role === 'admin'
   const userMenuItems = [
     { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/bookings", label: "My Bookings", icon: Ticket },
-    { path: "/profile", label: "Profile", icon: User },
+    { path: "/dashboard/bookings", label: "My Bookings", icon: Ticket },
+    { path: "/dashboard/profile", label: "Profile", icon: User },
   ]
 
   const adminMenuItems = [
-    { path: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/admin/events", label: "Manage Events", icon: Calendar },
-    { path: "/admin/bookings", label: "Bookings", icon: Ticket },
+    { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/dashboard/events", label: "Manage Events", icon: Calendar },
+    { path: "/dashboard/bookings", label: "Bookings", icon: Ticket },
   ]
 
   const menuItems = isAdmin ? adminMenuItems : userMenuItems
 
   return (
     <div className={cn("flex flex-col h-full bg-card text-card-foreground", className)}>
-      <div className="p-6 border-b">
+      <Link to={"/"} className="p-6 border-b">
         <h2 className="text-2xl font-bold text-primary tracking-tight">Event Booking</h2>
-      </div>
+      </Link>
       <nav className="flex-1 p-4 space-y-2">
         {menuItems.map((item) => {
           const Icon = item.icon
