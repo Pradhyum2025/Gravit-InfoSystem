@@ -13,11 +13,8 @@ const Profile = () => {
   const { user } = useSelector((state) => state.user)
 
   return (
-    <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-4xl mx-auto space-y-8">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">Profile</h1>
-            <p className="text-muted-foreground mt-2">View your account information</p>
-          </div>
+    <div className=" space-y-8">
+         
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

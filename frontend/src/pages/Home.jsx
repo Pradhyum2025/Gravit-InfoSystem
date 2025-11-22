@@ -42,7 +42,6 @@ const Home = () => {
   }, [dispatch])
 
   const allEvents = events.filter(e => {
-    const isUpcoming = new Date(e.date) > new Date()
     const matchesSearch = !searchTerm || 
       e.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -52,7 +51,7 @@ const Home = () => {
     const matchesDate = !filterDate || 
       new Date(e.date).toISOString().split('T')[0] === filterDate
     
-    return isUpcoming && matchesSearch && matchesLocation && matchesStatus && matchesDate
+    return matchesSearch && matchesLocation && matchesStatus && matchesDate
   })
   
   const uniqueLocations = [...new Set(events.map(e => e.location).filter(Boolean))]

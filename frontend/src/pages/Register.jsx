@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 
 const Register = () => {
   const [name, setName] = useState('')
@@ -31,9 +32,16 @@ const Register = () => {
 
   useEffect(() => {
     if (user) {
+      toast.success('Account created successfully!')
       navigate('/dashboard', { replace: true })
     }
   }, [user, navigate])
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error)
+    }
+  }, [error])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -60,21 +68,8 @@ const Register = () => {
           <CardContent>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm font-medium"
-                >
-                  {error}
-                </motion.div>
-              )}
-
               {/* For register roles by Pradhyum Garashya */}
               <div className="space-y-2">
-                {/* <label htmlFor="role" className="w-full text-center block text-sm font-semibold text-foreground">
-                  Account Type
-                </label> */}
                 <div className="w-full max-w-md mx-auto ">
                   <div className="flex justify-around gap-0  border-gray-300 w-full">
 
@@ -83,7 +78,6 @@ const Register = () => {
                      type='button'
                         key={tab.value}
                         onClick={() =>{
-                          // e.preventDefault()
                           setRole(()=>tab.value)}
                           }
                         className={`
@@ -120,7 +114,7 @@ const Register = () => {
                   placeholder="John Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  // required
+                  required
                   className="w-full"
                 />
               </div>
@@ -134,7 +128,7 @@ const Register = () => {
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  // required
+                  required
                   className="w-full"
                 />
               </div>
@@ -148,7 +142,7 @@ const Register = () => {
                   placeholder="Minimum 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  // required
+                  required
                   minLength={6}
                   className="w-full"
                 />
@@ -174,5 +168,3 @@ const Register = () => {
 }
 
 export default Register
-
-

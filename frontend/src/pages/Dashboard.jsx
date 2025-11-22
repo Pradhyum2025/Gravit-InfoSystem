@@ -31,7 +31,7 @@ const Dashboard = () => {
     return event && new Date(event.date) > new Date()
   })
 
-  const totalSpent = bookings.reduce((sum, booking) => sum + (booking.totalAmount || 0), 0)
+  const totalSpent = bookings.reduce((sum, booking) => sum + parseFloat(booking.totalAmount || 0), 0)
 
   const stats = [
     {
@@ -61,18 +61,10 @@ const Dashboard = () => {
   ]
 
   return (
-    <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-7xl mx-auto space-y-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-              <p className="text-muted-foreground mt-1">Welcome back, {user?.name}</p>
-            </div>
-            <Button onClick={() => navigate('/')}>
-              Browse Events
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className=" w-full space-y-8">
+      
+       
+          <div className="grid grid-cols-3 md:grid-cols-3 gap-6">
             {stats.map((stat, index) => (
               <motion.div
                 key={stat.title}

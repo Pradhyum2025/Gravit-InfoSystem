@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Button } from './ui/button'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import UserMenu from './UserMenu'
 
 export default function Navbar() {
     const { user } = useSelector((state) => state.user)
@@ -18,18 +19,13 @@ export default function Navbar() {
           >
             Event Booking
           </motion.h1>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             {user ? (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
               >
-                <Button
-                  onClick={() => navigate('/dashboard')}
-                  className="rounded-full px-6 py-2"
-                >
-                  Dashboard
-                </Button>
+                <UserMenu />
               </motion.div>
             ) : (
               <>

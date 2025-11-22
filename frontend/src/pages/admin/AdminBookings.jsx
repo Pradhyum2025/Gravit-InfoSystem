@@ -32,9 +32,9 @@ const AdminBookings = () => {
   }
 
   return (
-    <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-7xl mx-auto space-y-8">
-        <div className="p-8">
-          <h1 className="text-3xl font-bold mb-8">All Bookings</h1>
+    <div className="w-full space-y-8">
+        <div className="">
+        
           {loading ? (
             <p className="text-gray-500">Loading bookings...</p>
           ) : bookings.length === 0 ? (

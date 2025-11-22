@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 
 const Login = () => {
   const [email, setEmail] = useState('')
@@ -25,9 +26,16 @@ const Login = () => {
 
   useEffect(() => {
     if (user) {
+      toast.success('Login successful!')
       navigate("/dashboard")
     }
   }, [user, navigate, from])
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error)
+    }
+  }, [error])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -53,15 +61,6 @@ const Login = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm font-medium"
-                >
-                  {error}
-                </motion.div>
-              )}
               <div className="space-y-2">
                 <label htmlFor="email" className="block text-sm font-semibold text-foreground">
                   Email Address
@@ -108,5 +107,3 @@ const Login = () => {
 }
 
 export default Login
-
-

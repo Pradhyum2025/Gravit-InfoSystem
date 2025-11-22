@@ -11,8 +11,9 @@ import { fetchEvents, deleteEvent } from '@/store/slices/eventsSlice'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { Edit, Trash2 } from 'lucide-react'
 import EventFormModal from '@/components/EventFormModal'
+import { toast } from 'sonner'
 
 const ManageEvents = () => {
   const dispatch = useDispatch()
@@ -32,8 +33,13 @@ const ManageEvents = () => {
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this event?')) {
-      await dispatch(deleteEvent(id))
-      dispatch(fetchEvents())
+      try {
+        await dispatch(deleteEvent(id)).unwrap()
+        dispatch(fetchEvents())
+        toast.success('Event deleted successfully!')
+      } catch (error) {
+        toast.error(error || 'Failed to delete event')
+      }
     }
   }
 
@@ -51,16 +57,18 @@ const ManageEvents = () => {
     dispatch(fetchEvents())
   }
 
+  const getStatusBadge = (status) => {
+    const badges = {
+      upcoming: 'bg-blue-100 text-blue-800',
+      live: 'bg-green-100 text-green-800 animate-pulse',
+      closed: 'bg-red-100 text-red-800',
+    }
+    return badges[status] || badges.upcoming
+  }
+
   return (
     <>
-      <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-7xl mx-auto space-y-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Manage Events</h1>
-          <Button onClick={handleAddEvent}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Event
-          </Button>
-        </div>
+      <div className="w-full space-y-8">
         {loading ? (
           <p className="text-gray-500">Loading events...</p>
         ) : events.length === 0 ? (
@@ -81,14 +89,24 @@ const ManageEvents = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.1 }}
               >
-                <Card>
+                <Card className="relative">
                   {event.image && (
-                    <div className="w-full h-48 bg-gray-200 overflow-hidden rounded-t-lg">
+                    <div className="w-full h-48 bg-gray-200 overflow-hidden rounded-t-lg relative">
                       <img
                         src={event.image}
                         alt={event.title}
                         className="w-full h-full object-cover"
                       />
+                      <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadge(event.status)}`}>
+                        {event.status?.toUpperCase() || 'UPCOMING'}
+                      </div>
+                    </div>
+                  )}
+                  {!event.image && (
+                    <div className="relative">
+                      <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold z-10 ${getStatusBadge(event.status)}`}>
+                        {event.status?.toUpperCase() || 'UPCOMING'}
+                      </div>
                     </div>
                   )}
                   <CardHeader>
@@ -138,5 +156,3 @@ const ManageEvents = () => {
 }
 
 export default ManageEvents
-
-

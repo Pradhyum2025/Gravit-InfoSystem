@@ -26,7 +26,7 @@ const AdminDashboard = () => {
       return
     }
     dispatch(fetchEvents())
-    dispatch(fetchBookings())
+    dispatch(fetchBookings()) 
   }, [dispatch, user, navigate])
 
   const upcomingEvents = events.filter((e) => new Date(e.date) > new Date())
@@ -40,13 +40,12 @@ const AdminDashboard = () => {
     (sum, b) => sum + parseFloat(b.totalAmount || 0),
     0 // <-- MUST be a number, not "0"
   );
-  console.log("bookings",totalRevenue)
 
 
   return (
-    <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-7xl mx-auto space-y-8">
-        <div className="p-8">
-          <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+    <div className=" w-full mx-auto space-y-8">
+        <div className="">
+         
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}

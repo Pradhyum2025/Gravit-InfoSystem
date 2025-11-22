@@ -5,16 +5,29 @@
 // ---------------------------------------------------------------------
 
 import { Outlet } from 'react-router-dom'
-import Sidebar from '@/components/ui/sidebar'
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
+import { AppSidebar } from '@/components/ui/app-sidebar'
+import { Separator } from '@/components/ui/separator'
+import SubHeader from '@/components/SubHeader'
 
 const AppLayout = () => {
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 w-full md:w-auto md:ml-0 overflow-y-auto">
-        <Outlet />
-      </div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-10 sticky top-0 z-10 bg-white shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <div className="flex flex-1 items-center gap-2">
+            <h1 className="text-lg font-semibold">Dashboard</h1>
+          </div>
+        </header>
+        <SubHeader />
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-6 ">
+          <Outlet />
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
 

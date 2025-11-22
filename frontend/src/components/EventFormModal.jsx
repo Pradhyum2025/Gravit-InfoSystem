@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from 'sonner'
+import { ImageIcon, X } from 'lucide-react'
 
 const EventFormModal = ({ open, onOpenChange, eventId, onSuccess }) => {
     const dispatch = useDispatch()
@@ -42,7 +44,7 @@ const EventFormModal = ({ open, onOpenChange, eventId, onSuccess }) => {
             setFormData({
                 title: selectedEvent.title || '',
                 description: selectedEvent.description || '',
-                date: selectedEvent.date ? new Date(selectedEvent.date).toISOString().split('T')[0] : '',
+                date: selectedEvent.date ? new Date(selectedEvent.date).toISOString().slice(0, 16) : '',
                 location: selectedEvent.location || '',
                 price: selectedEvent.price || '',
                 totalSeats: selectedEvent.totalSeats || '',
@@ -71,6 +73,10 @@ const EventFormModal = ({ open, onOpenChange, eventId, onSuccess }) => {
     const handleImageChange = (e) => {
         const file = e.target.files[0]
         if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error('Image size should be less than 5MB')
+                return
+            }
             const reader = new FileReader()
             reader.onloadend = () => {
                 setFormData({ ...formData, image: reader.result })
@@ -79,21 +85,27 @@ const EventFormModal = ({ open, onOpenChange, eventId, onSuccess }) => {
         }
     }
 
+    const handleRemoveImage = () => {
+        setFormData({ ...formData, image: '' })
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         setLoading(true)
         try {
             if (eventId) {
                 await dispatch(updateEvent({ id: eventId, data: formData })).unwrap()
+                toast.success('Event updated successfully!')
             } else {
                 await dispatch(createEvent(formData)).unwrap()
+                toast.success('Event created successfully!')
             }
             onOpenChange(false)
             if (onSuccess) {
                 onSuccess()
             }
         } catch (error) {
-            alert(error || 'Failed to save event')
+            toast.error(error || 'Failed to save event')
         } finally {
             setLoading(false)
         }
@@ -101,75 +113,80 @@ const EventFormModal = ({ open, onOpenChange, eventId, onSuccess }) => {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{eventId ? 'Edit Event' : 'Create New Event'}</DialogTitle>
+                    <DialogTitle className="text-lg">{eventId ? 'Edit Event' : 'Create New Event'}</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 mt-4 pb-2">
+                <form onSubmit={handleSubmit} className="space-y-3 mt-2 pb-2">
                     <div className="space-y-2">
-                        <Label htmlFor="title">Title</Label>
+                        <Label htmlFor="title" className="text-sm">Title</Label>
                         <Input
                             id="title"
                             value={formData.title}
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             required
+                            className="text-sm"
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="description">Description</Label>
+                        <Label htmlFor="description" className="text-sm">Description</Label>
                         <Textarea
                             id="description"
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             required
-                            className="min-h-[100px]"
+                            className="min-h-[80px] text-sm"
                         />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-2">
-                            <Label htmlFor="date">Date</Label>
+                            <Label htmlFor="date" className="text-sm">Date</Label>
                             <Input
                                 id="date"
                                 type="datetime-local"
                                 value={formData.date}
                                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                                 required
+                                className="text-sm"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="location">Location</Label>
+                            <Label htmlFor="location" className="text-sm">Location</Label>
                             <Input
                                 id="location"
                                 value={formData.location}
                                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                                 required
+                                className="text-sm"
                             />
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-2">
-                            <Label htmlFor="price">Price (₹)</Label>
+                            <Label htmlFor="price" className="text-sm">Price (₹)</Label>
                             <Input
                                 id="price"
                                 type="number"
                                 value={formData.price}
                                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                                 required
+                                className="text-sm"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="totalSeats">Total Seats</Label>
+                            <Label htmlFor="totalSeats" className="text-sm">Total Seats</Label>
                             <Input
                                 id="totalSeats"
                                 type="number"
                                 value={formData.totalSeats}
                                 onChange={(e) => setFormData({ ...formData, totalSeats: e.target.value })}
                                 required
+                                className="text-sm"
                             />
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
+                        <Label htmlFor="status" className="text-sm">Status</Label>
                         <Select
                             value={formData.status}
                             onValueChange={(value) => setFormData({ ...formData, status: value })}
@@ -185,22 +202,42 @@ const EventFormModal = ({ open, onOpenChange, eventId, onSuccess }) => {
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="image">Image</Label>
-                        <Input
-                            id="image"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                        />
-                        {formData.image && (
-                            <img
-                                src={formData.image}
-                                alt="Preview"
-                                className="mt-2 w-full sm:w-48 h-48 object-cover rounded-lg"
-                            />
+                        <Label htmlFor="image" className="text-sm">Image</Label>
+                        {!formData.image ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors">
+                                <label htmlFor="image" className="cursor-pointer">
+                                    <ImageIcon className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                                    <p className="text-sm text-muted-foreground mb-1">Click to upload image</p>
+                                    <p className="text-xs text-muted-foreground">PNG, JPG up to 5MB</p>
+                                </label>
+                                <Input
+                                    id="image"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                    className="hidden"
+                                />
+                            </div>
+                        ) : (
+                            <div className="relative">
+                                <img
+                                    src={formData.image}
+                                    alt="Preview"
+                                    className="w-full h-48 sm:h-56 object-cover rounded-lg"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    className="absolute top-2 right-2"
+                                    onClick={handleRemoveImage}
+                                >
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </div>
                         )}
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-2 justify-end pt-4 sticky bottom-0 bg-background pb-2">
+                    <div className="flex flex-col sm:flex-row gap-2 justify-end pt-3  bg-background pb-2">
                         <Button
                             type="button"
                             variant="outline"
