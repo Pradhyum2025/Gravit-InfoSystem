@@ -119,7 +119,7 @@ export function AppSidebar() {
                 const Icon = item.icon
                 const isActive = location.pathname === item.url
                 return (
-                  <SidebarMenuItem onClick={()=>handleClick(item.url)} className={`hover:cursor-pinter ${isActive?"text-white bg-primary hover:bg-red-600":"hover:bg-gray-100"}`} key={item.title}>
+                  <SidebarMenuItem onClick={()=>handleClick(item.url)} className={`hover:cursor-pointer ${isActive?"text-white bg-primary hover:bg-red-600":"hover:bg-gray-100"}`} key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive} className={isActive ? "bg-primary text-primary-foreground" : ""}>
                       <span to={item.url}>
                         <Icon className="h-4 w-4" />
