@@ -16,6 +16,7 @@ import { Calendar, MapPin, Ticket, ArrowRight, ChevronDown, Users, Star, Search,
 import Footer from '@/components/Footer'
 import TalkToUs from '@/components/TalkToUs'
 import BookingModal from '@/components/BookingModal'
+import { toast } from 'sonner'
 
 const Home = () => {
   const dispatch = useDispatch()
@@ -45,9 +46,9 @@ const Home = () => {
     const matchesSearch = !searchTerm || 
       e.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesLocation = filterLocation === 'all' || !filterLocation || 
+    const matchesLocation = !filterLocation || filterLocation === 'all' || 
       e.location?.toLowerCase() === filterLocation.toLowerCase()
-    const matchesStatus = filterStatus === 'all' || !filterStatus || e.status === filterStatus
+    const matchesStatus = !filterStatus || filterStatus === 'all' || e.status === filterStatus
     const matchesDate = !filterDate || 
       new Date(e.date).toISOString().split('T')[0] === filterDate
     
@@ -57,12 +58,33 @@ const Home = () => {
   const uniqueLocations = [...new Set(events.map(e => e.location).filter(Boolean))]
 
   const handleBookTicket = (event) => {
+    // Check if user is logged in
     if (!user) {
       navigate('/login', { state: { from: { pathname: '/' } } })
-    } else {
-      setSelectedEvent(event)
-      setShowBookingModal(true)
+      return
     }
+
+    // Check if user is admin
+    if (user.role === 'admin') {
+      toast.error('Sign in as a user for booking')
+      return
+    }
+
+    // Check if event is closed
+    if (event.status === 'closed') {
+      toast.error('This event is closed. Bookings are no longer available.')
+      return
+    }
+
+    // Check if event has available seats
+    if (event.availableSeats <= 0) {
+      toast.error('This event is fully booked.')
+      return
+    }
+
+    // All checks passed, open booking modal
+    setSelectedEvent(event)
+    setShowBookingModal(true)
   }
 
   const scrollToEvents = () => {
@@ -200,7 +222,7 @@ const Home = () => {
                     className="pl-10"
                   />
                 </div>
-                <Select value={filterLocation || 'all'} onValueChange={(value) => setFilterLocation(value === 'all' ? '' : value)}>
+                <Select value={filterLocation || 'all'} onValueChange={(value) => setFilterLocation(value === 'all' ? 'all' : value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Locations" />
                   </SelectTrigger>
@@ -217,7 +239,7 @@ const Home = () => {
                   onChange={(e) => setFilterDate(e.target.value)}
                   placeholder="Filter by date"
                 />
-                <Select value={filterStatus || 'all'} onValueChange={(value) => setFilterStatus(value === 'all' ? '' : value)}>
+                <Select value={filterStatus || 'all'} onValueChange={(value) => setFilterStatus(value === 'all' ? 'all' : value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
@@ -267,10 +289,16 @@ const Home = () => {
                   initial={{ opacity: 0, y: 40 }}
                   animate={eventsInView ? { opacity: 1, y: 0 } : {}}
                   transition={{ delay: index * 0.1, duration: 0.6 }}
-                  className="group relative cursor-pointer h-full"
-                  onClick={() => handleBookTicket(event)}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
+                  className={`group relative h-full ${
+                    event.status === 'closed' ? 'cursor-not-allowed' : 'cursor-pointer'
+                  }`}
+                  onClick={() => {
+                    if (event.status !== 'closed') {
+                      handleBookTicket(event)
+                    }
+                  }}
+                  whileHover={event.status !== 'closed' ? { scale: 1.03 } : {}}
+                  whileTap={event.status !== 'closed' ? { scale: 0.97 } : {}}
                 >
                   <div
                     className={`
@@ -363,7 +391,7 @@ const Home = () => {
                       </motion.div>
 
                       {/* Quick Action Button on hover */}
-                      {event.status !== 'closed' && (
+                      {event.status !== 'closed' && (event.availableSeats > 0) && (
                         <motion.div
                           initial={{ opacity: 0 }}
                           whileHover={{ opacity: 1 }}

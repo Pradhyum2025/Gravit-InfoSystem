@@ -32,6 +32,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 const menuItems = {
@@ -80,8 +81,20 @@ export function AppSidebar() {
   const items = menuItems[isAdmin ? 'admin' : 'user']
 
   const handleLogout = () => {
+
+
     dispatch(logout())
     navigate('/')
+  }
+
+  const {isMobile, toggleSidebar } = useSidebar()
+
+  const handleClick = (url) => {
+    if(isMobile) toggleSidebar();
+
+    if (url) {
+      navigate(url)
+    }
   }
 
   return (
@@ -101,17 +114,17 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-2">
+            <SidebarMenu  className="space-y-2">
               {items.map((item) => {
                 const Icon = item.icon
                 const isActive = location.pathname === item.url
                 return (
-                  <SidebarMenuItem  className={`${isActive?"text-white bg-primary":"hover:bg-gray-50"}`} key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <Link to={item.url}>
+                  <SidebarMenuItem onClick={()=>handleClick(item.url)} className={`hover:cursor-pinter ${isActive?"text-white bg-primary hover:bg-red-600":"hover:bg-gray-100"}`} key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive} className={isActive ? "bg-primary text-primary-foreground" : ""}>
+                      <span to={item.url}>
                         <Icon className="h-4 w-4" />
                         <span>{item.title}</span>
-                      </Link>
+                      </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 )

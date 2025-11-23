@@ -7,7 +7,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, Calendar } from 'lucide-react'
 import { useState } from 'react'
 import EventFormModal from '@/components/EventFormModal'
 import { useDispatch } from 'react-redux'
@@ -15,11 +15,11 @@ import { fetchEvents } from '@/store/slices/eventsSlice'
 
 const SubHeader = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const { user } = useSelector((state) => state.user)
   const dispatch = useDispatch()
   const [modalOpen, setModalOpen] = useState(false)
-  const navigate  = useNavigate();
-  const path = location.pathname;
+
   const handleCreateEvent = () => {
     setModalOpen(true)
   }
@@ -38,7 +38,8 @@ const SubHeader = () => {
         description: user?.role === 'admin' 
           ? 'Manage your events and view analytics' 
           : 'View your upcoming events and bookings',
-        showCreateButton: user?.role === 'admin'
+        showCreateButton: user?.role === 'admin',
+        showBrowseButton: user?.role === 'user'
       }
     } else if (path === '/dashboard/bookings') {
       return {
@@ -46,26 +47,30 @@ const SubHeader = () => {
         description: user?.role === 'admin'
           ? 'View and manage all bookings'
           : 'View your event bookings and tickets',
-        showCreateButton: false
+        showCreateButton: false,
+        showBrowseButton: user?.role === 'user'
       }
     } else if (path === '/dashboard/profile') {
       return {
         title: 'Profile',
         description: 'View your account information',
-        showCreateButton: false
+        showCreateButton: false,
+        showBrowseButton: user?.role === 'user'
       }
     } else if (path === '/dashboard/events') {
       return {
         title: 'Manage Events',
         description: 'Create, edit, and manage your events',
-        showCreateButton: true
+        showCreateButton: true,
+        showBrowseButton: false
       }
     }
     
     return {
       title: 'Dashboard',
       description: '',
-      showCreateButton: false
+      showCreateButton: false,
+      showBrowseButton: false
     }
   }
 
@@ -73,23 +78,37 @@ const SubHeader = () => {
 
   return (
     <>
-      <div className="flex stikcy w-full top-20 bg-red-50 items-center justify-between px-4 py-3 border-b bg-white/50 backdrop-blur-sm">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-white/50 backdrop-blur-sm">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">{pageInfo.title}</h2>
+          <h2 className="text-sm sm:text-xl font-semibold text-foreground">{pageInfo.title}</h2>
           {pageInfo.description && (
-            <p className="text-sm text-muted-foreground mt-1">{pageInfo.description}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">{pageInfo.description}</p>
           )}
         </div>
-        {pageInfo.showCreateButton && (
-          <Button onClick={handleCreateEvent} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Create Event
-          </Button>
-        )}
-         {user?.role==="user" && path==="/dashboard" &&
-       <Button onClick={() => navigate('/')}>
-       Browse Events
-     </Button>}
+        <div className="flex gap-2">
+          {pageInfo.showBrowseButton && (
+            <Button onClick={() => navigate('/')} variant="outline" className="gap-2">
+              <Calendar className="w-4 h-4" />
+              <span className='hidden md:inline'>
+              Browse
+              </span>
+
+              <span className='hidden lg:inline'>
+              Events
+              </span>
+
+               
+            </Button>
+          )}
+          {pageInfo.showCreateButton && (
+            <Button title="Add New Event" onClick={handleCreateEvent} className="gap-2">
+              <Plus className="w-4 h-4" />
+              <span className='hidden md:inline'>
+              Create Event
+              </span>
+            </Button>
+          )}
+        </div>
       </div>
       {pageInfo.showCreateButton && (
         <EventFormModal
@@ -99,13 +118,8 @@ const SubHeader = () => {
           onSuccess={handleModalSuccess}
         />
       )}
-     
     </>
   )
 }
 
 export default SubHeader
-
-
-
-

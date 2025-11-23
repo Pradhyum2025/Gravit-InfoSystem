@@ -14,6 +14,7 @@ import { motion } from 'framer-motion'
 import { Calendar, MapPin, Ticket, ArrowLeft, Share2, Clock } from 'lucide-react'
 import BookingModal from '@/components/BookingModal'
 import Sidebar from '@/components/ui/sidebar'
+import { toast } from 'sonner'
 
 const EventDetail = () => {
   const { id } = useParams()
@@ -28,11 +29,32 @@ const EventDetail = () => {
   }, [dispatch, id])
 
   const handleBookTicket = () => {
+    // Check if user is logged in
     if (!user) {
       navigate('/login', { state: { from: { pathname: `/events/${id}` } } })
-    } else {
-      setShowBookingModal(true)
+      return
     }
+
+    // Check if user is admin
+    if (user.role === 'admin') {
+      toast.error('Sign in as a user for booking')
+      return
+    }
+
+    // Check if event is closed
+    if (selectedEvent.status === 'closed') {
+      toast.error('This event is closed. Bookings are no longer available.')
+      return
+    }
+
+    // Check if event has available seats
+    if (!selectedEvent.availableSeats || selectedEvent.availableSeats <= 0) {
+      toast.error('This event is fully booked.')
+      return
+    }
+
+    // All checks passed, open booking modal
+    setShowBookingModal(true)
   }
 
   if (loading) {
@@ -160,11 +182,17 @@ const EventDetail = () => {
                       size="lg"
                       className="w-full text-lg font-semibold shadow-md hover:shadow-lg transition-all"
                       onClick={handleBookTicket}
-                      disabled={!selectedEvent.availableSeats || selectedEvent.availableSeats === 0}
+                      disabled={
+                        !selectedEvent.availableSeats || 
+                        selectedEvent.availableSeats === 0 || 
+                        selectedEvent.status === 'closed'
+                      }
                     >
-                      {(!selectedEvent.availableSeats || selectedEvent.availableSeats === 0)
-                        ? 'Sold Out'
-                        : 'Book Tickets Now'}
+                      {selectedEvent.status === 'closed'
+                        ? 'Event Closed'
+                        : (!selectedEvent.availableSeats || selectedEvent.availableSeats === 0)
+                          ? 'Sold Out'
+                          : 'Book Tickets Now'}
                     </Button>
 
                     <p className="text-xs text-center text-muted-foreground">

@@ -17,6 +17,17 @@ export const store = configureStore({
     bookings: bookingsReducer,
     socket: socketReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        // Ignore these action types
+        ignoredActions: ['socket/setSocket'],
+        // Ignore these field paths in all actions
+        ignoredActionPaths: ['payload.socket'],
+        // Ignore these paths in the state
+        ignoredPaths: ['socket.socket'],
+      },
+    }),
 })
 
 

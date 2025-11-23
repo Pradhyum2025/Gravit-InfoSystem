@@ -8,17 +8,22 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { createBooking } from '@/store/slices/bookingsSlice'
 import { fetchEventById } from '@/store/slices/eventsSlice'
+import { fetchBookings } from '@/store/slices/bookingsSlice'
 import { lockSeat, unlockSeat, setLockedSeats } from '@/store/slices/socketSlice'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardTitle } from '@/components/ui/card'
 import { motion, AnimatePresence } from 'framer-motion'
-import { QRCodeSVG } from 'qrcode.react'
-import { X, CheckCircle2, Ticket } from 'lucide-react'
+import { X } from 'lucide-react'
 import { io } from 'socket.io-client'
-
+import { toast } from 'sonner'
+import SeatLegend from './booking/SeatLegend'
+import SeatMap from './booking/SeatMap'
+import BookingSummary from './booking/BookingSummary'
+import BookingSuccess from './booking/BookingSuccess'
 
 const BookingModal = ({ event, onClose }) => {
+
+
   const dispatch = useDispatch()
   const { user } = useSelector((state) => state.user)
   const { socket, lockedSeats } = useSelector((state) => state.socket)
@@ -26,247 +31,498 @@ const BookingModal = ({ event, onClose }) => {
   const [bookingSuccess, setBookingSuccess] = useState(false)
   const [bookingData, setBookingData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [bookedSeats, setBookedSeats] = useState([])
+
+  const totalSeats = event?.totalSeats || 50
+  // Responsive seats per row: 5 on mobile, 10 on larger screens
+  const [seatsPerRow, setSeatsPerRow] = useState(10)
 
   useEffect(() => {
+    const updateSeatsPerRow = () => {
+      setSeatsPerRow(window.innerWidth < 640 ? 10 : 10)
+    }
+    
+    updateSeatsPerRow()
+    window.addEventListener('resize', updateSeatsPerRow)
+    return () => window.removeEventListener('resize', updateSeatsPerRow)
+  }, [])            
+
+  // Fetch all bookings for this event to get booked seats
+  useEffect(() => {
+    const fetchBookedSeats = async () => {
+      if (!event?.id) {
+        setBookedSeats([])
+        return
+      }
+      
+      try {
+        const result = await dispatch(fetchBookings({ eventId: event.id })).unwrap()
+        
+        // Extract all booked seats from all bookings for this event
+        const allBookedSeats = []
+        
+        if (Array.isArray(result) && result.length > 0) {
+          result.forEach(booking => {
+            // Handle both string and number eventId
+            const bookingEventId = Number(booking.eventId || booking.event_id)
+            const currentEventId = Number(event.id)
+            
+            // Match booking to current event
+            if (bookingEventId === currentEventId) {
+              // Handle seats - could be array, string (JSON), or null/undefined
+              if (booking.seats) {
+                let seats = []
+                
+                // If it's already an array, use it directly
+                if (Array.isArray(booking.seats)) {
+                  seats = booking.seats
+                } 
+                // If it's a string, try to parse it
+                else if (typeof booking.seats === 'string') {
+                  try {
+                    // Try JSON parse first
+                    const parsed = JSON.parse(booking.seats)
+                    seats = Array.isArray(parsed) ? parsed : [parsed]
+                  } catch (e) {
+                    // If JSON parse fails, try comma-separated
+                    seats = booking.seats.split(',').map(s => s.trim()).filter(Boolean)
+                  }
+                }
+                
+                // Convert all seats to numbers and validate
+                seats.forEach(seat => {
+                  const seatNum = Number(seat)
+                  if (!isNaN(seatNum) && seatNum > 0 && seatNum <= totalSeats) {
+                    allBookedSeats.push(seatNum)
+                  }
+                })
+              }
+            }
+          })
+        }
+        
+        // Remove duplicates and sort
+        const uniqueBookedSeats = [...new Set(allBookedSeats)].sort((a, b) => a - b)
+        setBookedSeats(uniqueBookedSeats)
+      } catch (error) {
+        console.error('Failed to fetch booked seats:', error)
+        setBookedSeats([])
+      }
+    }
+    
+    if (event?.id && totalSeats > 0) {
+      fetchBookedSeats()
+      // Refresh booked seats every 3 seconds to catch real-time updates
+      const interval = setInterval(fetchBookedSeats, 3000)
+      return () => clearInterval(interval)
+    } else {
+      setBookedSeats([])
+    }
+  }, [dispatch, event?.id, totalSeats])
+
+  useEffect(() => {
+    if (!event?.id) return
+
     let newSocket = socket
     if (!socket) {
-      newSocket = io('http://localhost:5000')
-      dispatch({ type: 'socket/setSocket', payload: newSocket })
-      dispatch({ type: 'socket/setConnected', payload: true })
+      try {
+        newSocket = io('http://localhost:5000', {
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 5,
+          timeout: 20000,
+        })
+        dispatch({ type: 'socket/setSocket', payload: newSocket })
+        dispatch({ type: 'socket/setConnected', payload: true })
+      } catch (error) {
+        console.error('Failed to create socket connection:', error)
+        return
+      }
     }
 
-    newSocket.emit('joinEvent', event.id)
-    newSocket.on('lockedSeats', (seats) => {
-      dispatch(setLockedSeats({ [event.id]: seats || {} }))
-    })
-    newSocket.on('seatLocked', ({ seatIndex, userId }) => {
-      if (userId !== user?.id) {
-        dispatch(lockSeat({ eventId: event.id, seatIndex, userId }))
+    if (!newSocket) return
+
+    try {
+      // Wait for connection before joining event
+      const setupSocketListeners = () => {
+        newSocket.emit('joinEvent', event.id)
       }
-    })
-    newSocket.on('seatUnlocked', ({ seatIndex }) => {
-      dispatch(unlockSeat({ eventId: event.id, seatIndex }))
-    })
+
+      // If already connected, setup immediately
+      if (newSocket.connected) {
+        setupSocketListeners()
+      } else {
+        // Wait for connection
+        newSocket.once('connect', setupSocketListeners)
+      }
+      
+      newSocket.on('lockedSeats', (seats) => {
+        try {
+          dispatch(setLockedSeats({ [event.id]: seats || {} }))
+        } catch (error) {
+          console.error('Error handling lockedSeats:', error)
+        }
+      })
+      
+      newSocket.on('seatLocked', ({ seatIndex, userId }) => {
+        try {
+          if (userId !== user?.id) {
+            dispatch(lockSeat({ eventId: event.id, seatIndex, userId }))
+          }
+        } catch (error) {
+          console.error('Error handling seatLocked:', error)
+        }
+      })
+      
+      newSocket.on('seatUnlocked', ({ seatIndex }) => {
+        try {
+          dispatch(unlockSeat({ eventId: event.id, seatIndex }))
+        } catch (error) {
+          console.error('Error handling seatUnlocked:', error)
+        }
+      })
+      
+      newSocket.on('seatLockFailed', ({ seatIndex, reason }) => {
+        try {
+          toast.error(`Seat ${seatIndex + 1} ${reason}`)
+          // Remove from selected if it was selected
+          setSelectedSeats(prev => prev.filter(s => s !== seatIndex))
+        } catch (error) {
+          console.error('Error handling seatLockFailed:', error)
+        }
+      })
+
+      newSocket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error)
+      })
+
+      newSocket.on('error', (error) => {
+        console.error('Socket error:', error)
+      })
+    } catch (error) {
+      console.error('Error setting up socket listeners:', error)
+    }
 
     return () => {
       // Unlock all selected seats when modal closes
       if (newSocket && selectedSeats.length > 0) {
-        selectedSeats.forEach(seatIndex => {
-          newSocket.emit('unlockSeat', { eventId: event.id, seatIndex })
-        })
+        try {
+          selectedSeats.forEach(seatIndex => {
+            newSocket.emit('unlockSeat', { eventId: event.id, seatIndex, userId: user?.id })
+          })
+        } catch (error) {
+          console.error('Error unlocking seats on cleanup:', error)
+        }
       }
-      if (!socket && newSocket) {
-        newSocket.disconnect()
+      // Remove socket listeners
+      try {
+        if (newSocket) {
+          newSocket.off('lockedSeats')
+          newSocket.off('seatLocked')
+          newSocket.off('seatUnlocked')
+          newSocket.off('seatLockFailed')
+          newSocket.off('connect_error')
+          newSocket.off('error')
+        }
+        if (!socket && newSocket) {
+          newSocket.disconnect()
+        }
+      } catch (error) {
+        console.error('Error cleaning up socket:', error)
       }
     }
-  }, [event.id, user?.id, dispatch, socket, selectedSeats])
+  }, [event?.id, user?.id, dispatch, socket, selectedSeats])
 
-  const totalSeats = event.totalSeats || 50
-  const seatsPerRow = 10
-  const rows = Math.ceil(totalSeats / seatsPerRow)
   const eventLockedSeats = lockedSeats[event.id] || {}
 
   const handleSeatClick = (seatIndex) => {
-    if (eventLockedSeats[seatIndex] && eventLockedSeats[seatIndex] !== user?.id) {
-      return // Seat is locked by another user
+    if (!event?.id || !user?.id) {
+      toast.error('Please login to select seats')
+      return
     }
 
-    if (selectedSeats.includes(seatIndex)) {
-      setSelectedSeats(selectedSeats.filter((s) => s !== seatIndex))
-      if (socket) {
-        socket.emit('unlockSeat', { eventId: event.id, seatIndex })
+    const seatNumber = seatIndex + 1
+    
+    // Check if seat is already booked (validated from backend)
+    if (bookedSeats.includes(seatNumber)) {
+      toast.error(`Seat ${seatNumber} is already booked`)
+      return
+    }
+
+    // Check if seat is locked by another user (temporary lock)
+    if (eventLockedSeats[seatIndex] && eventLockedSeats[seatIndex] !== user?.id) {
+      toast.error('This seat is being selected by another user')
+      return
+    }
+
+    try {
+      if (selectedSeats.includes(seatIndex)) {
+        // Unlock seat
+        setSelectedSeats(selectedSeats.filter((s) => s !== seatIndex))
+        if (socket) {
+          // Socket.io will queue the message if not connected yet
+          socket.emit('unlockSeat', { eventId: event.id, seatIndex, userId: user?.id })
+        }
+      } else {
+        // Lock seat temporarily (expires after 5 minutes)
+        setSelectedSeats([...selectedSeats, seatIndex])
+        if (socket) {
+          // Socket.io will queue the message if not connected yet
+          socket.emit('lockSeat', { eventId: event.id, seatIndex, userId: user?.id })
+        }
       }
-    } else {
-      setSelectedSeats([...selectedSeats, seatIndex])
-      if (socket) {
-        socket.emit('lockSeat', { eventId: event.id, seatIndex, userId: user?.id })
-      }
+    } catch (error) {
+      console.error('Error handling seat click:', error)
+      toast.error('An error occurred. Please try again.')
     }
   }
 
   const handleBooking = async () => {
     if (selectedSeats.length === 0) {
-      alert('Please select at least one seat')
+      toast.error('Please select at least one seat')
+      return
+    }
+
+    // Convert seat indices to seat numbers (1-based)
+    const seatNumbers = selectedSeats.map(index => index + 1)
+    
+    // Final validation before submission - check if seats are already booked
+    const conflictingSeats = seatNumbers.filter(seatNum => bookedSeats.includes(seatNum))
+    if (conflictingSeats.length > 0) {
+      toast.error(`Seats ${conflictingSeats.join(', ')} are already booked. Please select different seats.`)
+      // Unlock conflicting seats and remove from selection
+      conflictingSeats.forEach(seatNum => {
+        const seatIndex = seatNum - 1
+        setSelectedSeats(prev => prev.filter(s => s !== seatIndex))
+        if (socket) {
+          socket.emit('unlockSeat', { eventId: event.id, seatIndex, userId: user?.id })
+        }
+      })
+      // Refresh booked seats
+      const result = await dispatch(fetchBookings({ eventId: event.id })).unwrap()
+      const refreshedBookedSeats = []
+      
+      if (Array.isArray(result)) {
+        result.forEach(booking => {
+          const bookingEventId = Number(booking.eventId || booking.event_id)
+          const currentEventId = Number(event.id)
+          
+          if (bookingEventId === currentEventId && booking.seats) {
+            let seats = []
+            if (Array.isArray(booking.seats)) {
+              seats = booking.seats
+            } else if (typeof booking.seats === 'string') {
+              try {
+                const parsed = JSON.parse(booking.seats)
+                seats = Array.isArray(parsed) ? parsed : [parsed]
+              } catch (e) {
+                seats = booking.seats.split(',').map(s => s.trim()).filter(Boolean)
+              }
+            }
+            
+            seats.forEach(seat => {
+              const seatNum = Number(seat)
+              if (!isNaN(seatNum) && seatNum > 0 && seatNum <= totalSeats) {
+                refreshedBookedSeats.push(seatNum)
+              }
+            })
+          }
+        })
+      }
+      
+      const uniqueRefreshedSeats = [...new Set(refreshedBookedSeats)].sort((a, b) => a - b)
+      setBookedSeats(uniqueRefreshedSeats)
+      return
+    }
+
+    if (!user?.id) {
+      toast.error('Please login to make a booking')
+      return
+    }
+
+    if (!event?.id || !event?.price) {
+      toast.error('Invalid event information')
       return
     }
 
     setLoading(true)
     try {
+      // BACKEND VALIDATES AND CONFIRMS BOOKING - Only backend modifies seat count
       const result = await dispatch(
         createBooking({
           eventId: event.id,
           userId: user.id,
-          seats: selectedSeats,
+          seats: seatNumbers, // Send seat numbers, not indices
           totalAmount: selectedSeats.length * event.price,
         })
       ).unwrap()
 
+      // Booking confirmed by backend
       setBookingData(result)
       setBookingSuccess(true)
+      toast.success('Booking confirmed successfully!')
+      
+      // Clear selected seats
+      const bookedSeatIndices = [...selectedSeats]
+      setSelectedSeats([])
+      
       // Unlock all seats after successful booking
-      if (socket && selectedSeats.length > 0) {
-        selectedSeats.forEach(seatIndex => {
-          socket.emit('unlockSeat', { eventId: event.id, seatIndex })
+      if (socket && bookedSeatIndices.length > 0) {
+        bookedSeatIndices.forEach(seatIndex => {
+          socket.emit('unlockSeat', { eventId: event.id, seatIndex, userId: user?.id })
         })
       }
-      dispatch(fetchEventById(event.id))
+      
+      // Refresh booked seats from backend immediately (with error handling)
+      try {
+        const updatedBookings = await dispatch(fetchBookings({ eventId: event.id })).unwrap()
+        const allBookedSeats = []
+        
+        if (Array.isArray(updatedBookings)) {
+          updatedBookings.forEach(booking => {
+            const bookingEventId = Number(booking.eventId || booking.event_id)
+            const currentEventId = Number(event.id)
+            
+            if (bookingEventId === currentEventId && booking.seats) {
+              let seats = []
+              if (Array.isArray(booking.seats)) {
+                seats = booking.seats
+              } else if (typeof booking.seats === 'string') {
+                try {
+                  const parsed = JSON.parse(booking.seats)
+                  seats = Array.isArray(parsed) ? parsed : [parsed]
+                } catch (e) {
+                  seats = booking.seats.split(',').map(s => s.trim()).filter(Boolean)
+                }
+              }
+              
+              seats.forEach(seat => {
+                const seatNum = Number(seat)
+                if (!isNaN(seatNum) && seatNum > 0 && seatNum <= totalSeats) {
+                  allBookedSeats.push(seatNum)
+                }
+              })
+            }
+          })
+        }
+        
+        const uniqueBookedSeats = [...new Set(allBookedSeats)].sort((a, b) => a - b)
+        setBookedSeats(uniqueBookedSeats)
+      } catch (refreshError) {
+        console.error('Error refreshing booked seats:', refreshError)
+        // Don't fail the booking if refresh fails - booking was successful
+      }
+      
+      // Refresh event data (backend modified seat count) - with error handling
+      try {
+        await dispatch(fetchEventById(event.id))
+      } catch (refreshError) {
+        console.error('Error refreshing event data:', refreshError)
+        // Don't fail the booking if refresh fails
+      }
     } catch (error) {
-      alert(error || 'Booking failed')
+      console.error('Booking error:', error)
+      const errorMessage = error?.message || error || 'Booking failed. Please try again.'
+      toast.error(errorMessage)
+      
+      // Unlock seats on booking failure
+      if (socket && selectedSeats.length > 0) {
+        try {
+          selectedSeats.forEach(seatIndex => {
+            socket.emit('unlockSeat', { eventId: event.id, seatIndex, userId: user?.id })
+          })
+        } catch (unlockError) {
+          console.error('Error unlocking seats:', unlockError)
+        }
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  const getSeatStatus = (seatIndex) => {
-    if (selectedSeats.includes(seatIndex)) return 'selected'
-    if (eventLockedSeats[seatIndex]) return 'locked'
-    return 'available'
-  }
+  // Check if event is fully booked
+  const isFullyBooked = event.availableSeats <= 0
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div 
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4" 
+        onClick={onClose}
+      >
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.2 }}
-          className="bg-card border border-border rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+          className="bg-card border border-border rounded-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
         >
           {!bookingSuccess ? (
             <>
-              <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-card z-10">
-                <div>
-                  <CardTitle className="text-xl">Select Your Seats</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">{event.title}</p>
+              {/* Header */}
+              <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-border sticky top-0 bg-card z-10">
+                <div className="flex-1 min-w-0 pr-2">
+                  <CardTitle className="text-lg sm:text-xl truncate">Select Your Seats</CardTitle>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate">{event.title}</p>
+                  {isFullyBooked && (
+                    <p className="text-xs sm:text-sm text-red-500 font-semibold mt-1">
+                      ⚠️ Event is fully booked. Registration is closed.
+                    </p>
+                  )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-secondary">
-                  <X className="w-5 h-5" />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={onClose} 
+                  className="hover:bg-secondary flex-shrink-0"
+                >
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
               </div>
-              <CardContent className="p-6">
-                <div className="mb-8">
-                  <div className="flex flex-wrap gap-4 mb-6 p-4 bg-secondary/50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-muted border-2 border-border rounded"></div>
-                      <span className="text-sm text-muted-foreground">Available</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-primary border-2 border-primary rounded"></div>
-                      <span className="text-sm text-muted-foreground">Selected</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-muted-foreground/20 border-2 border-muted-foreground/30 rounded"></div>
-                      <span className="text-sm text-muted-foreground">Locked</span>
-                    </div>
-                  </div>
 
-                  <div className="mb-4 text-center">
-                    <div className="inline-block px-8 py-2 bg-secondary rounded-t-lg text-sm font-medium text-muted-foreground">
-                      SCREEN
-                    </div>
+              {/* Content */}
+              <CardContent className="p-3 sm:p-4 md:p-6">
+                {isFullyBooked ? (
+                  <div className="text-center py-8 sm:py-12">
+                    <p className="text-base sm:text-lg font-semibold text-red-500 mb-2">
+                      All seats are booked
+                    </p>
+                    <p className="text-sm sm:text-base text-muted-foreground">
+                      This event is no longer accepting new bookings.
+                    </p>
                   </div>
+                ) : (
+                  <>
+                    <div className="mb-6 sm:mb-8 w-full">
+                      <SeatLegend />
+                      <SeatMap
+                        totalSeats={totalSeats}
+                        seatsPerRow={seatsPerRow}
+                        bookedSeats={bookedSeats}
+                        selectedSeats={selectedSeats}
+                        eventLockedSeats={eventLockedSeats}
+                        userId={user?.id}
+                        onSeatClick={handleSeatClick}
+                      />
+                    </div>
 
-                  <div className="grid gap-2 justify-center" style={{ gridTemplateColumns: `repeat(${seatsPerRow}, 1fr)` }}>
-                    {Array.from({ length: totalSeats }).map((_, index) => {
-                      const status = getSeatStatus(index)
-                      return (
-                        <motion.button
-                          key={index}
-                          whileHover={status !== 'locked' ? { scale: 1.1 } : {}}
-                          whileTap={status !== 'locked' ? { scale: 0.95 } : {}}
-                          onClick={() => handleSeatClick(index)}
-                          disabled={status === 'locked'}
-                          className={`
-                            w-10 h-10 rounded text-xs font-semibold transition-all duration-200
-                            ${status === 'selected' ? 'bg-primary text-primary-foreground border-2 border-primary shadow-md' : ''}
-                            ${status === 'available' ? 'bg-muted border-2 border-border hover:bg-secondary hover:border-primary/50' : ''}
-                            ${status === 'locked' ? 'bg-muted-foreground/20 border-2 border-muted-foreground/30 cursor-not-allowed opacity-50' : ''}
-                          `}
-                        >
-                          {index + 1}
-                        </motion.button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                <div className="border-t border-border pt-6 space-y-4">
-                  <div className="flex justify-between items-center p-4 bg-secondary/50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Ticket className="w-5 h-5 text-primary" />
-                      <span className="font-medium">Selected Seats:</span>
-                      <span className="font-bold text-primary">{selectedSeats.length}</span>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Total Amount</p>
-                      <p className="text-2xl font-bold text-primary">
-                        ₹{selectedSeats.length * event.price}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    className="w-full text-lg font-semibold shadow-md hover:shadow-lg transition-all"
-                    size="lg"
-                    onClick={handleBooking}
-                    disabled={selectedSeats.length === 0 || loading}
-                  >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground mr-2"></div>
-                        Processing...
-                      </>
-                    ) : (
-                      'Confirm Booking'
-                    )}
-                  </Button>
-                </div>
+                    <BookingSummary
+                      selectedSeats={selectedSeats}
+                      eventPrice={event.price}
+                      onConfirm={handleBooking}
+                      loading={loading}
+                    />
+                  </>
+                )}
               </CardContent>
             </>
           ) : (
-            <div className="p-8 text-center">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                className="space-y-6"
-              >
-                <div className="flex justify-center">
-                  <div className="p-4 bg-primary/10 rounded-full">
-                    <CheckCircle2 className="w-16 h-16 text-primary" />
-                  </div>
-                </div>
-
-                <div>
-                  <h2 className="text-3xl font-bold text-foreground mb-2">Booking Successful!</h2>
-                  <p className="text-muted-foreground">Your tickets have been confirmed</p>
-                </div>
-
-                {bookingData && (
-                  <div className="bg-secondary/50 p-6 rounded-lg inline-block">
-                    <QRCodeSVG
-                      value={JSON.stringify({
-                        bookingId: bookingData.id,
-                        eventId: event.id,
-                        userId: user.id,
-                      })}
-                      size={200}
-                      className="mx-auto mb-4"
-                    />
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Booking ID</p>
-                      <p className="font-mono font-semibold text-foreground">{bookingData.id}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-4">
-                  <Button onClick={onClose} size="lg" className="min-w-[200px]">
-                    Close
-                  </Button>
-                </div>
-              </motion.div>
-            </div>
+            <BookingSuccess
+              bookingData={bookingData}
+              eventId={event.id}
+              userId={user?.id}
+              onClose={onClose}
+            />
           )}
         </motion.div>
       </div>
@@ -275,4 +531,3 @@ const BookingModal = ({ event, onClose }) => {
 }
 
 export default BookingModal
-
